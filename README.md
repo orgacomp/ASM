@@ -1,6 +1,25 @@
 ## ASM
 
+### Prerrequisitos
+
+* Instalar NASM y gdb
+    
+    ```bash
+    sudo apt install build-essential nasm gdb wget
+    ```
+* Instalar gdb-dashboard (mejora la interfaz de gdb)
+
+    [https://github.com/cyrus-and/gdb-dashboard]
+
+    ```bash
+    wget -P ~ https://git.io/.gdbinit
+    ```
+
+### Con respecto a la guía
+
 Recomendación: Todos los programas deben escribirse en C y luego en ASM. Hacer una rutina en main que llame a la función en C y luego a la función en ASM. Imprimir los resultados para verificar que sean iguales.
+
+Usar gdb para debuggear
 
 ### Ejercicio 1
 

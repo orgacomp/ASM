@@ -21,6 +21,10 @@ Recomendación: Todos los programas deben escribirse en C y luego en ASM. Hacer 
 
 Usar gdb para debuggear
 
+### Machete
+
+![](img/registros.png)
+
 ### Ejercicio 1
 
 Escriba un programa que tome un vector de 16 enteros de 32 bits y los sume.

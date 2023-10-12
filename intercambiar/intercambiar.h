@@ -1,6 +1,6 @@
 #ifndef INTERCAMBIAR
 #define INTERCAMBIAR
 
-void intercambiar(char*);
+void intercambiar(char str[]);
 
 #endif /* INTERCAMBIAR */

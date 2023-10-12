@@ -14,3 +14,5 @@ sumar_asm:
         sub ecx, 1
         jnz .ciclo
 
+    ret
+

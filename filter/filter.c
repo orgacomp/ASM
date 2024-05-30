@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "lib.h"
 
-void filter2(list_t *l, int (*func)(int))
+void filter(list_t *l, int (*func)(int))
 {
     listElem_t *actual = l->first;
     while (actual != NULL)
@@ -23,13 +23,13 @@ void filter2(list_t *l, int (*func)(int))
             }
             else if (actual == l->last)
             {
-                l->last = actual->prev;
+                l->last = prevElem;
                 prevElem->next = NULL;
             }
             else
             {
-                prevElem->next = nextElem;
                 nextElem->prev = prevElem;
+                prevElem->next = nextElem;
             }
             free(actual);
             l->size--;

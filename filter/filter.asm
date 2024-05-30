@@ -29,7 +29,7 @@ filterAsm:
         test rbx, rbx                           ; verifico que el primer elemento NO sea null (o puede ser cpm rbx, 0)
         je      .finish                         ; es null, finalizo
 
-        mov     r15, [rbx+OFFSET_ELEM_NEXT]     ; r15 = aux = actual->next 
+        mov     r15, [rbx+OFFSET_ELEM_NEXT]     ; r15 = nextElem = actual->next 
         mov     edi, [rbx + OFFSET_ELEM_DATA]   ; edi = actual-> data
         call    r13                             ; llamo a func(data)
         cmp eax, 0                              ; verifico si es 0
@@ -37,7 +37,7 @@ filterAsm:
 
         mov r9, [rbx+OFFSET_ELEM_PREV]          ; r9 = prevElem
 
-        cmp     dword [r12+OFFSET_LIST_SIZE], 1
+        cmp     dword [r12+OFFSET_LIST_SIZE], 1 ; verifico si la lista tiene un solo elemento
         je      .one_element
 
         cmp     rbx, [r12+OFFSET_LIST_FIRST]    ; verifico si es el primero de la lista
@@ -54,22 +54,22 @@ filterAsm:
         sub     dword [r12+OFFSET_LIST_SIZE], 1 ; size -=1
 
 .actualize:
-    mov rbx, r15
+    mov rbx, r15                                ; actual = nextElem
     jmp .ciclo
 
 .is_first:
-        mov     [r12+OFFSET_LIST_FIRST], r15      ; lista -> first = nextElem
-        mov     qword [r15+OFFSET_ELEM_PREV], 0   ; prevElem = NULL
+        mov     [r12+OFFSET_LIST_FIRST], r15     ; lista -> first = nextElem
+        mov     qword [r15+OFFSET_ELEM_PREV], 0  ; nextElem -> prev = NULL
         jmp     .delete_element             
 
 .is_last:
-        mov     [r12+OFFSET_LIST_LAST], r9       ; lista -> last =  prevElem          
-        mov     qword [r9+OFFSET_ELEM_NEXT], 0   ; nextElem = NULL
+        mov     [r12+OFFSET_LIST_LAST], r9        ; lista -> last =  prevElem          
+        mov     qword [r9+OFFSET_ELEM_NEXT], 0    ; prevElem -> next = NULL
         jmp     .delete_element
 
 .one_element:
-        mov     qword[r12+OFFSET_LIST_FIRST], 0      ; lista -> first = NULL
-        mov     qword[r12+OFFSET_LIST_LAST], 0       ; lista -> last =  NULL
+        mov     qword[r12+OFFSET_LIST_FIRST], 0   ; lista -> first = NULL
+        mov     qword[r12+OFFSET_LIST_LAST], 0    ; lista -> last =  NULL
         jmp     .delete_element
 
 .finish:

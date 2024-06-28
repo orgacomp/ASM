@@ -43,8 +43,10 @@ map:
         mov rdi, [r12 + rbx*8]  ; rdi = array->data[i]
 
         push rdx
+        sub rsp, 8              ; alineo la pila a 16 bytes      
         call r14                ; rax = func(array->data[i])
-        pop rdx
+        add rsp, 8              
+        pop rdx                 
 
         mov [r15 + rbx*8], rax  ; newArray->data[i] = data
         inc bl ; i++

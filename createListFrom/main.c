@@ -14,7 +14,7 @@ int main(){
     arrayPrint(array, stdout);
     printf("\n");
 
-    list_t* list = createListFrom_c(array);
+    list_t* list = createListFrom(array);
     
     printf("Created list:\n");
     listPrint(list, stdout);

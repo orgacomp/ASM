@@ -90,6 +90,6 @@ filterAsm:
     pop rbp
     ret
 
-; chequeamos que el stack esté alineado a 16 bytes!!! Si :D
+; chequeamos que la pila esté alineada a 16 bytes!!! Si :D
 ; si no lo estaba => se hace un sub rsp, 8  y luego un add rsp, 8
 

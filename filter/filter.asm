@@ -1,7 +1,7 @@
+
 global filterAsm
 
 extern free
-
 %define OFFSET_ELEM_DATA 0
 %define OFFSET_ELEM_NEXT 8
 %define OFFSET_ELEM_PREV 16
@@ -14,68 +14,82 @@ extern free
 section .text
 
 filterAsm:
-        push rbp
-        mov rbp, rsp                            ;inicializamos el stack frame
-        push    r12
-        push    r13
-        push    r15                             
-        push    rbx                             ; stack alineado a 16 bytes
+    push rbp
+    mov rbp, rsp                        ;inicializamos el stack frame
+    push r12                            
+    push r13                            
+    push r14                            
+    push r15                          
 
-        mov     r12, rdi                        ; r12 = lista
-        mov     r13, rsi                        ; r13 = func
-        mov     rbx, [r12+ OFFSET_LIST_FIRST]   ; rbx = actual = l->first
 
-.ciclo:  
-        test rbx, rbx                           ; verifico que el primer elemento NO sea null (o puede ser cpm rbx, 0)
-        je      .finish                         ; es null, finalizo
+    mov r12, rdi                        ; r12 = lista
+    mov r13, rsi                        ; r13 = func
+    mov r14, [r12 + OFFSET_LIST_FIRST]  ; r14 = actual
 
-        mov     r15, [rbx+OFFSET_ELEM_NEXT]     ; r15 = nextElem = actual->next 
-        mov     edi, [rbx + OFFSET_ELEM_DATA]   ; edi = actual-> data
-        call    r13                             ; llamo a func(data)
-        cmp eax, 0                              ; verifico si es 0
-        jne      .actualize                     ; si no es 0, sigo con el siguiente elemento
+.ciclo:
+    cmp r14, 0                          ; verifico que el primer elemento NO sea null (o puede ser test r14, r14) (caso 0)
+    je  .end                            ; si es null, finalizo
 
-        mov r9, [rbx+OFFSET_ELEM_PREV]          ; r9 = prevElem
+    mov r15, [r14 + OFFSET_ELEM_NEXT]   ; r15 = nextElem = actual->next 
+    mov edi, [r14 + OFFSET_ELEM_DATA]   ; edi = actual->data (la necesito en el primer parametro para la función) 
+                                        ; edi porque data es un int => es de 4 bytes
+    call r13                            ; llamo a func(data)
+    cmp eax, 0                          ; verifico si es 0 (eax porque la función devuelve un int)
+    jne .next                           ; si no es 0, sigo con el siguiente elemento
+                                        
+                                        ; si llegó aca es porque la función devolvió 0 => hay que eliminarlo 
+                                        ; y sigue uno de los 4 casos dentro del while
 
-        cmp     dword [r12+OFFSET_LIST_SIZE], 1 ; verifico si la lista tiene un solo elemento
-        je      .one_element
+    mov r9, [r14 + OFFSET_ELEM_PREV]    ; r9 = prevElem = actual -> prev 
+                                        ; utilizo un registro volatil porque NO se lo utiliza después de llamar alguna función
 
-        cmp     rbx, [r12+OFFSET_LIST_FIRST]    ; verifico si es el primero de la lista
-        je      .is_first
-        cmp     rbx, [r12+OFFSET_LIST_LAST]     ; verifico si es el ultimo de la lista
-        je      .is_last
+    cmp dword [r12 + OFFSET_LIST_SIZE], 1  ; verifico si la lista tiene un solo elemento (caso 1)
+    je  .unElem
 
-        mov     [r15+OFFSET_ELEM_PREV], r9      ; nextElem -> prev = prevElem
-        mov     [r9+OFFSET_ELEM_NEXT], r15      ; prevElem -> next =  nextElem   
+    cmp r14, [r12 + OFFSET_LIST_FIRST]  ; verifico si es igual al primero de la lista (caso 2)
+    je  .actualFirst
 
-.delete_element:
-        mov     rdi, rbx                    
-        call    free                            ; free(actual)
-        sub     dword [r12+OFFSET_LIST_SIZE], 1 ; size -=1
+    cmp r14, [r12 + OFFSET_LIST_LAST]   ; verifico si es igual al ultimo de la lista (caso 3)
+    je  .actualLast
 
-.actualize:
-    mov rbx, r15                                ; actual = nextElem
-    jmp .ciclo
+    jmp .else                           ; caso feliz  
 
-.is_first:
-        mov     [r12+OFFSET_LIST_FIRST], r15     ; lista -> first = nextElem
-        mov     qword [r15+OFFSET_ELEM_PREV], 0  ; nextElem -> prev = NULL
-        jmp     .delete_element             
+.unElem:
+    mov qword [r12 + OFFSET_LIST_FIRST], 0   ; lista -> first = NULL
+    mov qword [r12 + OFFSET_LIST_LAST], 0    ; lista -> last =  NULL
+    jmp .deleteElem
 
-.is_last:
-        mov     [r12+OFFSET_LIST_LAST], r9        ; lista -> last =  prevElem          
-        mov     qword [r9+OFFSET_ELEM_NEXT], 0    ; prevElem -> next = NULL
-        jmp     .delete_element
+.actualFirst:
+    mov [r12 + OFFSET_LIST_FIRST], r15       ; lista -> first = nextElem
+    mov qword [r15 + OFFSET_ELEM_PREV], 0    ; nextElem -> prev = NULL
+    jmp .deleteElem
 
-.one_element:
-        mov     qword[r12+OFFSET_LIST_FIRST], 0   ; lista -> first = NULL
-        mov     qword[r12+OFFSET_LIST_LAST], 0    ; lista -> last =  NULL
-        jmp     .delete_element
+.actualLast:
+    mov [r12 + OFFSET_LIST_LAST], r9         ; lista -> last =  prevElem          
+    mov qword [r9 + OFFSET_ELEM_NEXT], 0     ; prevElem -> next = NULL    
+    jmp .deleteElem
 
-.finish:
-        pop     rbx
-        pop     r15
-        pop     r13
-        pop     r12
-        pop     rbp
-        ret
+.else:
+    mov qword [r9 + OFFSET_ELEM_NEXT], r15   ; prevElem -> next =  nextElem 
+    mov qword [R15 + OFFSET_ELEM_PREV], r9   ; nextElem -> prev = prevElem     
+
+.deleteElem:
+    mov rdi, r14                             
+    call free                                ; free(actual)   
+    sub dword [r12 + OFFSET_LIST_SIZE] , 1   ; size -=1   
+
+.next:
+    mov r14, r15                             ; actual = nextElem
+    jmp .ciclo                               
+
+.end:
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbp
+    ret
+
+; chequeamos que el stack esté alineado a 16 bytes!!! Si :D
+; si no lo estaba => se hace un sub rsp, 8  y luego un add rsp, 8
+

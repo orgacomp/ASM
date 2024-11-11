@@ -18,7 +18,9 @@ map:
     push r12
     push r13
     push r14
-    push r15 ; alineada a 16 bytes
+    push r15 
+    push rbx
+    sub rsp, 8;  ; alineada a 16 bytes
 
     mov r14, rsi ; preservo el puntero a la funcion en r14
 
@@ -57,6 +59,9 @@ map:
     .end:
 
     mov rax, r13
+
+    add rsp, 8
+    pop rbx
     pop r15
     pop r14
     pop r13

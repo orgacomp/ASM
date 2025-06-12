@@ -18,7 +18,6 @@ int main() {
     char *str1 ="axbxcdx";
     char marker = 'x';
     int error = 0;
-    //char *result_1 = sitting_ducks_c(str1, marker);
     char *result_1 = sitting_ducks(str1, marker);
     
     if (strcmp(result_1, "_x_x__x") != 0) {

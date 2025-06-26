@@ -1,5 +1,5 @@
 NASM:=nasm
-NASMFLAGS:=-Wall -f elf64 -g -Wall
+NASMFLAGS:=-Wall -f elf64 -g -Wall -w-reloc-rel-dword
 CC:=gcc
 CFLAGS:=-std=c11 -m64 -no-pie -Wall -Wextra -pedantic -O0 -ggdb -MMD -MP -z noexecstack
 

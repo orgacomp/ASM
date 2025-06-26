@@ -43,11 +43,11 @@ listAddFirst_asm:
     mov [r12 + LIST_FIRST], r14
     ; Si la lista estaba vacía, actualizo el último nodo
     cmp rcx, 0
-    je .set_last
+    je .last
     ; Si la lista no está vacía, actualizo el nodo previo
     mov [rcx + LIST_ELEM_PREV], r14
     jmp .done
-.set_last:
+.last:
     mov [r12 + LIST_LAST], r14
 .done:
     ; Actualiza el tamaño de la lista

@@ -19,6 +19,7 @@ extern getCloneFunction
 extern getDeleteFunction
 extern getPrintFunction
 extern fprintf
+extern free
 
 ;DEFINIMOS FUNCIONES EXTERNAS DE C QUE NECESITEMOS LLAMAR
 
@@ -61,7 +62,6 @@ mov rbp,rsp
 push r12                            ;OPERACIONES DE PILA
 sub rsp,8                           ;hago un rsp 8 para mantener la pila alineada a 16 para despues llamar a malloc
 
-
 mov r12d,edi                        ;guardo el type_t t en r12d.Puede ser que con la llamada de malloc se pierda por eso utilizo un registro no volatil 
 mov rdi,TAM_LIST                    ;en RDI guardo el 24(el tamaño de la lista) dejo preparada la funcion para malloc
 call malloc                         ;llamo a malloc
@@ -94,7 +94,6 @@ ret
 ;ret
 
 
-
 ;/////////////////////////////////////////////////////////////////////////////
 ;uint8_t listGetSize(list_t *l)
 
@@ -105,7 +104,7 @@ mov rbp,rsp                         ;armo stack frame
 
 movzx rax,byte [rdi+OFFSET_SIZE]    ;en rax dejo el size del puntero  
 
-pop rbp
+pop rbp                             ;cierro stack frame
 ret 
 
 
@@ -123,10 +122,8 @@ push r13
 push r14
 push r15
 
-
 mov r12,rdi                         ;dejo en r12 list_t* l
 mov r13,rsi                         ;dejo en r13 void*data
-
 
 movzx rdi,dword[r12+OFFSET_TYPE]    ;paso como parametro el tipo
 call getCloneFunction               ;llamo a getclone
@@ -200,7 +197,7 @@ mov rdi,TAM_ELEMENT                 ;dejo en rdi la cantidad de list_elem
 call malloc
 
 mov qword[rax+OFFSET_DATA],r14      
-mov qword[rax+OFFSET_NEXT],0        ;inicializo punteros en 0 para salva uninitialized value;
+mov qword[rax+OFFSET_NEXT],0        ;inicializo punteros en 0 para salvar uninitialized values de valgrind;
 mov qword[rax+OFFSET_PREV],0        ;
 mov r15,rax                         ;dejo en r15 el nodo
 cmp byte[r12+OFFSET_SIZE],0         ;reviso si la lista pasada por parametro no tiene ningun elemento
@@ -242,21 +239,21 @@ mov rbp,rsp
 cmp sil,byte[rdi+OFFSET_SIZE]  ;comparo el i con el tamaño de la lista l->size
 jge .fin_corte
 mov cl,0                      ;incio un contador en 0
-mov rax,[rdi+OFFSET_FIRST]
+mov rax,[rdi+OFFSET_FIRST]    ;dejo en rax el primer nodo de la lista
 .while:
-cmp cl ,sil
+cmp cl ,sil                   ;mientras que el contador sea menor a la posicion i 
 jge .fin
-mov rax,[rax+OFFSET_NEXT]
-inc cl
+mov rax,[rax+OFFSET_NEXT]     ;pasar al siguiente nodo
+inc cl                        ;incrementar el contador
 jmp .while 
 
 .fin:
-mov rax,[rax+OFFSET_DATA]
+mov rax,[rax+OFFSET_DATA]     ;en rax dejo el puntero a data del nodo
 pop rbp
 ret
 
 .fin_corte:
-mov rax,0
+mov rax,0                   ;si la i esta fuera de rango se retorna un puntero NULL
 pop rbp
 ret
 
@@ -281,18 +278,18 @@ call listNew                            ; llamo a list new
 
 mov r13,rax                             ;en r13 guardo la lista nueva
 
-mov r14,[r12+OFFSET_FIRST]
+mov r14,[r12+OFFSET_FIRST]              ;en r14 dejo el primer elemento de la lista me interesa que este un no volatil porque voy a llamar funciones de las cuales pisotean no volatiles
 .while:
-cmp r14,0
+cmp r14,0                               ;si el puntero es null es que se llego al final de la lista
 je .fin
-mov rdi,r13
-mov rsi,[r14+OFFSET_DATA]
-call listAddLast
-mov r14,[r14+OFFSET_NEXT]
+mov rdi,r13                             ;en rdi dejo la lista nueva
+mov rsi,[r14+OFFSET_DATA]               ;en rsi el puntero a data de la lista vieja
+call listAddLast                        ;llamo a listAddLast que ya de por si clona al puntero y me lo añade al final de la lista 
+mov r14,[r14+OFFSET_NEXT]               ;voy al nodo siguiente de la lista vieja
 jmp .while
 
 .fin:
-mov rax,r13
+mov rax,r13                             ;dejo en rax la lista vieja 
 pop r14
 pop r13
 pop r12 
@@ -316,10 +313,10 @@ push r13
 push r14 
 
 mov r12, rdi                    ;en r12 guardo la lista_t*l
-cmp sil, byte[rdi+OFFSET_SIZE]  ; verifico si el i es mayor o no esto ya me tiene en cuenta el caso donde la lista es vacia
+cmp sil, byte[rdi+OFFSET_SIZE]  ;verifico si el i es mayor o no esto ya me tiene en cuenta el caso donde la lista es vacia
 jge .corto                      ;en el caso de que no corto y retorno NULL
 mov r13,[rdi+OFFSET_FIRST]      ;muevo en r12 el primer nodo para iterar
-mov cl,0                        ;inicializo un contador en 0 en rcx chico cl byte
+mov cl,0                        ;inicializo un contador en 0 en cl (byte de rcx)
 .while:
 cmp cl,sil                      ;mientras cl<sil(posicion deseada)
 jge .analizar_casos             ;se termino el while y tengo el nodo que quiero eliminar 
@@ -332,18 +329,18 @@ mov rax,0                       ;en caso de que no hay elementos o la i esta fue
 jmp .fin
 
 .analizar_casos:
-mov r14,[r13+OFFSET_DATA]
+mov r14,[r13+OFFSET_DATA]       ;me guardo en r14 el void*data que retornaremos al final de la funcion
 cmp byte[r12+OFFSET_SIZE],1     ;comparo para ver si es el unico elemento de la lista
 je .un_solo_elemento
 cmp r13,[r12+OFFSET_FIRST]      ;compara para ver si es el primer_elemento de la lista y hay mas de 1
 je .primer_elemento
 cmp r13,[r12+OFFSET_LAST]       ;compara para ver si es el ultimo elemento de la lista y hay mas de 1
 je .ultimo_elemento
-jne .elemento_intermedio        ;en el caso de que no es un elemento intermedio
+jne .elemento_intermedio        ;en el caso de que no, es un elemento intermedio
 
 .un_solo_elemento:
-mov qword [r12+OFFSET_FIRST],0  ;asigno los punteros de first y las y 0 la lista queda vacia
-mov qword [r12+OFFSET_LAST],0 
+mov qword [r12+OFFSET_FIRST],0  ;asigno los punteros de first y last a 0, la lista queda vacia
+mov qword [r12+OFFSET_LAST],0   
 jmp .se_elimina
 
 .primer_elemento:
@@ -380,54 +377,55 @@ add rsp, 8
 pop rbp 
 ret
 
-
+;ESTA FUNCION DE LIST REMOVE SE PUEDE SIMPLIFICAR :P
 
 ;///////////////////////////////////////////////////////////////////
 ;void listSwap(list_t *l, uint8_t i, uint8_t j)
 
 listSwap:
 
-push rbp 
+push rbp                                ;armo stack frame
 mov rbp,rsp
 
-cmp sil,dl
-je .fin
-cmp sil,byte[rdi+OFFSET_SIZE]
+cmp sil,dl                              ;si i==j se termina la funcion
+je .fin 
+cmp sil,byte[rdi+OFFSET_SIZE]           ;me fijo si i>= list->size  
 jge .fin
-cmp dl, byte[rdi+OFFSET_SIZE]
+cmp dl, byte[rdi+OFFSET_SIZE]           ;reviso si j>= list->size
 jge .fin
-mov r8,[rdi+OFFSET_FIRST]
-xor cl,cl
-cmp sil,dl
-jg .intercambiar_i_j
+mov r8,[rdi+OFFSET_FIRST]               ;en r8 dejo el primer nodo de la lista
+xor cl,cl                               ;establezco cl en 0 (registro de 8 bits de rcx(se usa como contador))
+
+cmp sil,dl                              ;reviso si i>j 
+jg .intercambiar_i_j                    
 jmp .while_i
 
-.intercambiar_i_j:
-mov al,sil   ;temp=i
+.intercambiar_i_j:                      ;La idea es recorrer la lista una sola vez y guardarse los nodos de los cuales queremos intercambiar
+mov al,sil   ;temp=i                    ;primero siempre voy a querer llegar a i y despues recorrer hasta j y realizar el intercambio
 mov sil,dl   ;i=j
 mov dl,al    ;j=temp
 jmp .while_i
 
 .while_i:
-cmp cl,sil
+cmp cl,sil                              ;comparo el contador con i si llegue a la posicion indicada freno 
 jge .continuar
-mov r8,[r8+OFFSET_NEXT]
-inc cl
+mov r8,[r8+OFFSET_NEXT]                 ;paso al nodo siguiente
+inc cl                                  ;incremento el contador
 jmp .while_i
 
 .continuar:
-mov r9,r8
+mov r9,r8                                ;preparo r9 para llegar hasta j 
 jmp .while_j
 
 .while_j:
-cmp cl,dl
+cmp cl,dl                                ;comparo las posiciones despues de i hasta que llego a la posicion J
 jge .swap
-mov r9,[r9+OFFSET_NEXT]
-inc cl
+mov r9,[r9+OFFSET_NEXT]                  ;paso al nodo siguiente
+inc cl                                   ;incremento el contador
 jmp .while_j
 
 .swap:
-mov r10,[r8+OFFSET_DATA]
+mov r10,[r8+OFFSET_DATA]                ;intercambio los void*data de de r8(nodo  posicion i) y r9(nodo posicion j) 
 mov r11,[r9+OFFSET_DATA]
 mov [r8+OFFSET_DATA],r11
 mov [r9+OFFSET_DATA],r10
@@ -453,7 +451,7 @@ push r12                            ;registro que guarda la lista ya que rdi es 
 mov r12,rdi
 movzx  rdi,dword[r12+OFFSET_TYPE]   ;guardo en rdi el l->type que es type_t
 call getDeleteFunction              ;llamo a getDeleteFunction CON LA PILA ALINEADA
-mov [rbp-8],rax                     ;guardo en rbp-8 la funcion para eliminar 
+mov [rbp-8],rax                     ;guardo en rbp-8 la funcion para eliminar la cual voy a usar repetidas veces 
 
 .while:
 cmp byte[r12+OFFSET_SIZE],0         ;comparo si el tamñano es mayor a 0 para seguir eliminando
@@ -480,55 +478,56 @@ ret
 
 listPrint:
 
-push rbp
+push rbp            ;ARMO STACK FRAME 
 mov rbp,rsp
+
 sub rsp,8
 push r12
 push r13
 push r14
 
-mov r12,rdi
-mov r13,rsi
+mov r12,rdi                         ;en r12 guardo el puntero a la lista
+mov r13,rsi                         ;en r13 guardo el puntero al FILE
 
-mov rdi,r13                 
+mov rdi,r13                                
 mov rsi,FORMATEO_STRING             
 mov rdx,CORCHETE_INICIO
-call fprintf                ;  fprintf(pfile,"%s","[")
+call fprintf                        ;fprintf(pfile,"%s","[")
 
-movzx rdi,dword[r12+OFFSET_TYPE]
-call getPrintFunction
-mov [rbp-8],rax
+movzx rdi,dword[r12+OFFSET_TYPE]    ;guardo en rdi el type_t 
+call getPrintFunction               
+mov [rbp-8],rax                     ;dejo en el rpb-8 la funcion de print 
 
-mov r14,[r12+OFFSET_FIRST]
-cmp r14,0
+mov r14,[r12+OFFSET_FIRST]          ;en r14 dejo el puntero al primer nodo de la lista
+cmp r14,0                           ;si es NULL es que se llego al final de la lista
 je .fin
-mov rdi,[r14+OFFSET_DATA]
-mov rsi,r13
-call [rbp-8]
-mov r14,[r14+OFFSET_NEXT]
+mov rdi,[r14+OFFSET_DATA]           ;dejo la data en rdi
+mov rsi,r13                         ;en rsi dejo el pfile
+call [rbp-8]                        ;llamo a la funcion de print las funciones de print son del estilo DATOprint(DATO*DATO,FILE*pfile)
+mov r14,[r14+OFFSET_NEXT]           ;paso al siguiente nodo de la lista
 
-.while:
+.while:                             ;despues de printear el primer elemento printeo ,elemento y cuando llego al fin pongo un ] 
 cmp r14,0
 je .fin
 
 mov rdi,r13
 mov rsi,FORMATEO_STRING
-mov rdx,COMA
+mov rdx,COMA                       ;Printeo una coma
 call fprintf
 
 mov rdi,[r14+OFFSET_DATA]
 mov rsi,r13
 call [rbp-8]
-mov r14,[r14+OFFSET_NEXT]
+mov r14,[r14+OFFSET_NEXT]          ;Printeo un elemento
 jmp .while
 
 .fin 
 mov rdi,r13    
 mov rsi,FORMATEO_STRING             
 mov rdx,CORCHETE_FINAL
-call fprintf                ;  fprintf(pfile,"%s","]")
+call fprintf                       ;fprintf(pfile,"%s","]") printeo el corchete final
 
-pop r14
+pop r14                            ;Restauro pila a como estaba incialmente
 pop r13
 pop r12
 add rsp,8
